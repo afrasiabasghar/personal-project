@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>22 Jeeto</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Popup Component for all messages
+    const Popup = ({ message, onClose }) => {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-gray-900 p-6 rounded-lg shadow-lg w-full max-w-sm">
+            <p className="text-center text-lg text-yellow-400 mb-4">{message}</p>
+            <button
+              onClick={onClose}
+              className="w-full bg-yellow-400 text-black p-2 rounded-lg hover:bg-yellow-500"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // CAPTCHA Component (Slide to Complete)
+    const Captcha = ({ onComplete, onCancel }) => {
+      const [sliderValue, setSliderValue] = useState(0);
+      const correctPosition = 60; // Correct position for the puzzle piece (out of 100)
+      const tolerance = 5; // Allow a small range for success
+
+      const handleSliderChange = (e) => {
+        setSliderValue(e.target.value);
+      };
+
+      const verifyCaptcha = () => {
+        if (Math.abs(sliderValue - correctPosition) <= tolerance) {
+          onComplete();
+        } else {
+          setSliderValue(0);
+          alert('Incorrect position! Try again.');
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-gray-900 p-6 rounded-lg shadow-lg w-full max-w-sm">
+            <h2 className="text-lg font-bold text-yellow-400 mb-4">Complete the CAPTCHA</h2>
+            <p className="text-gray-300 mb-4">Slide to align the puzzle piece and complete the image.</p>
+            <div className="relative w-full h-32 bg-gray-800 rounded-lg mb-4 overflow-hidden">
+              {/* Background image (simulated with a gradient) */}
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+              {/* Missing piece area */}
+              <div
+                className="absolute w-16 h-16 bg-gray-900"
+                style={{ left: `${correctPosition}%`, top: '25%' }}
+              ></div>
+              {/* Sliding puzzle piece */}
+              <div
+                className="absolute w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 border-2 border-yellow-400"
+                style={{ left: `${sliderValue}%`, top: '25%' }}
+              ></div>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={sliderValue}
+              onChange={handleSliderChange}
+              className="w-full mb-4"
+            />
+            <div className="flex justify-around">
+              <button
+                onClick={verifyCaptcha}
+                className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-500"
+              >
+                Verify
+              </button>
+              <button
+                onClick={onCancel}
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Main App Component
+    const App = () => {
+      const [isLoggedIn, setIsLoggedIn] = useState(false);
+      const [isDemoMode, setIsDemoMode] = useState(false);
+      const [user, setUser] = useState(null);
+      const [demoUser, setDemoUser] = useState(null);
+      const [showDeposit, setShowDeposit] = useState(false);
+      const [showWithdraw, setShowWithdraw] = useState(false);
+      const [popupMessage, setPopupMessage] = useState(null);
+
+      useEffect(() => {
+        const loggedInUser = localStorage.getItem('user');
+        if (loggedInUser) {
+          setUser(JSON.parse(loggedInUser));
+          setIsLoggedIn(true);
+        }
+      }, []);
+
+      const handleLogin = (userData) => {
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        setIsLoggedIn(true);
+      };
+
+      const handleLogout = () => {
+        localStorage.removeItem('user');
+        setUser(null);
+        setIsLoggedIn(false);
+        setIsDemoMode(false);
+      };
+
+      const handleStartDemo = () => {
+        setDemoUser({ balance: 500, chances: 3 });
+        setIsDemoMode(true);
+      };
+
+      const handleExitDemo = () => {
+        setIsDemoMode(false);
+        setDemoUser(null);
+      };
+
+      return (
+        <div className="min-h-screen bg-black text-white">
+          {!isLoggedIn && !isDemoMode ? (
+            <LoginPage onLogin={handleLogin} onStartDemo={handleStartDemo} setPopupMessage={setPopupMessage} />
+          ) : showDeposit && !isDemoMode ? (
+            <DepositPage setShowDeposit={setShowDeposit} user={user} setUser={setUser} setPopupMessage={setPopupMessage} />
+          ) : showWithdraw && !isDemoMode ? (
+            <WithdrawPage setShowWithdraw={setShowWithdraw} />
+          ) : (
+            <GamePage
+              user={isDemoMode ? demoUser : user}
+              setUser={isDemoMode ? setDemoUser : setUser}
+              setShowDeposit={setShowDeposit}
+              setShowWithdraw={setShowWithdraw}
+              onLogout={handleLogout}
+              onExitDemo={handleExitDemo}
+              setPopupMessage={setPopupMessage}
+              isDemoMode={isDemoMode}
+            />
+          )}
+          {popupMessage && (
+            <Popup message={popupMessage} onClose={() => setPopupMessage(null)} />
+          )}
+        </div>
+      );
+    };
+
+    // Login Page Component
+    const LoginPage = ({ onLogin, onStartDemo, setPopupMessage }) => {
+      const [isSignUp, setIsSignUp] = useState(false);
+      const [emailOrPhone, setEmailOrPhone] = useState('');
+      const [password, setPassword] = useState('');
+      const [showCaptcha, setShowCaptcha] = useState(false);
+      const [pendingCredentials, setPendingCredentials] = useState(null);
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!emailOrPhone || !password) {
+          setPopupMessage('Please fill in all fields');
+          return;
+        }
+
+        // Store credentials temporarily and show CAPTCHA
+        setPendingCredentials({ emailOrPhone, password, isSignUp });
+        setShowCaptcha(true);
+      };
+
+      const handleCaptchaComplete = () => {
+        const { emailOrPhone, password, isSignUp } = pendingCredentials;
+        if (isSignUp) {
+          const users = JSON.parse(localStorage.getItem('users')) || [];
+          if (users.some(u => u.emailOrPhone === emailOrPhone)) {
+            setPopupMessage('User already exists');
+            setShowCaptcha(false);
+            return;
+          }
+          const newUser = { emailOrPhone, password, balance: 0 };
+          users.push(newUser);
+          localStorage.setItem('users', JSON.stringify(users));
+          onLogin(newUser);
+        } else {
+          const users = JSON.parse(localStorage.getItem('users')) || [];
+          const user = users.find(u => u.emailOrPhone === emailOrPhone && u.password === password);
+          if (!user) {
+            setPopupMessage('Invalid credentials');
+            setShowCaptcha(false);
+            return;
+          }
+          onLogin(user);
+        }
+        setShowCaptcha(false);
+        setPendingCredentials(null);
+      };
+
+      const handleCaptchaCancel = () => {
+        setShowCaptcha(false);
+        setPendingCredentials(null);
+      };
+
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-black">
+          <div className="bg-gray-900 p-6 rounded-lg shadow-lg w-full max-w-sm">
+            <div className="flex justify-center mb-4">
+              <h1 className="text-2xl font-bold text-yellow-400">22 Jeeto</h1>
+            </div>
+            <div className="flex justify-around mb-4">
+              <button
+                className={`text-lg ${!isSignUp ? 'text-yellow-400 border-b-2 border-yellow-400' : 'text-gray-400'}`}
+                onClick={() => setIsSignUp(false)}
+              >
+                Sign In
+              </button>
+              <button
+                className={`text-lg ${isSignUp ? 'text-yellow-400 border-b-2 border-yellow-400' : 'text-gray-400'}`}
+                onClick={() => setIsSignUp(true)}
+              >
+                Sign Up
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-300">Email or Phone Number</label>
+                <input
+                  type="text"
+                  value={emailOrPhone}
+                  onChange={(e) => setEmailOrPhone(e.target.value)}
+                  className="w-full p-2 border rounded-lg bg-gray-800 text-white"
+                  placeholder="Enter email or phone"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-300">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-2 border rounded-lg bg-gray-800 text-white"
+                  placeholder="Enter password"
+                />
+              </div>
+              <button
+                onClick={handleSubmit}
+                className="w-full bg-yellow-400 text-black p-2 rounded-lg hover:bg-yellow-500"
+              >
+                {isSignUp ? 'Sign Up' : 'Sign In'}
+              </button>
+              <button
+                onClick={onStartDemo}
+                className="w-full bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-500 mt-2"
+              >
+                Play Demo
+              </button>
+            </div>
+          </div>
+          {showCaptcha && (
+            <Captcha onComplete={handleCaptchaComplete} onCancel={handleCaptchaCancel} />
+          )}
+        </div>
+      );
+    };
+
+    // Game Page Component
+    const GamePage = ({ user, setUser, setShowDeposit, setShowWithdraw, onLogout, onExitDemo, setPopupMessage, isDemoMode }) => {
+      const [activeGame, setActiveGame] = useState('30sec');
+      const [showBetPopup, setShowBetPopup] = useState(null);
+      const [betAmount, setBetAmount] = useState('');
+      const [pendingBets, setPendingBets] = useState({ '30sec': null, '1min': null, '3min': null, '5min': null });
+
+      // Separate game data for real and demo modes
+      const [gameData, setGameData] = useState(() => {
+        const savedData = localStorage.getItem(isDemoMode ? 'demoGameData' : 'gameData');
+        if (savedData) {
+          return JSON.parse(savedData);
+        }
+        return {
+          '30sec': { time: 30, history: [], period: isDemoMode ? 20250329100062300 : 20250329100052300, lastUpdate: Date.now() },
+          '1min': { time: 60, history: [], period: isDemoMode ? 20250329100062300 : 20250329100052300, lastUpdate: Date.now() },
+          '3min': { time: 180, history: [], period: isDemoMode ? 20250329100062300 : 20250329100052300, lastUpdate: Date.now() },
+          '5min': { time: 300, history: [], period: isDemoMode ? 20250329100062300 : 20250329100052300, lastUpdate: Date.now() },
+        };
+      });
+
+      // Seeded Random Number Generator for Unpredictability
+      const mulberry32 = (a) => {
+        return function() {
+          let t = a += 0x6D2B79F5;
+          t = Math.imul(t ^ t >>> 15, t | 1);
+          t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+          return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        };
+      };
+      const seed = Date.now();
+      const random = mulberry32(seed);
+
+      const generateResult = () => {
+        const number = Math.floor(random() * 10);
+        const color = number === 0 ? 'violet' : number % 2 === 0 ? 'red' : 'green';
+        const bigSmall = number >= 5 ? 'Big' : 'Small';
+        return { number, color, bigSmall };
+      };
+
+      // Simulate game updates even when the user is offline
+      const updateGameState = (prevData) => {
+        const now = Date.now();
+        const newData = { ...prevData };
+        Object.keys(newData).forEach(mode => {
+          const elapsedSeconds = Math.floor((now - newData[mode].lastUpdate) / 1000);
+          let remainingTime = newData[mode].time - (elapsedSeconds % (mode === '30sec' ? 30 : mode === '1min' ? 60 : mode === '3min' ? 180 : 300));
+          const cycles = Math.floor(elapsedSeconds / (mode === '30sec' ? 30 : mode === '1min' ? 60 : mode === '3min' ? 180 : 300));
+
+          for (let i = 0; i < cycles; i++) {
+            const result = generateResult();
+            newData[mode].history.unshift({
+              period: newData[mode].period + i,
+              number: result.number,
+              bigSmall: result.bigSmall,
+              color: result.color,
+            });
+            if (newData[mode].history.length > 10) newData[mode].history.pop();
+          }
+
+          newData[mode].period += cycles;
+          newData[mode].time = remainingTime <= 0 ? (mode === '30sec' ? 30 : mode === '1min' ? 60 : mode === '3min' ? 180 : 300) : remainingTime;
+          newData[mode].lastUpdate = now;
+        });
+        return newData;
+      };
+
+      useEffect(() => {
+        // Update game state on load to account for offline time
+        setGameData(prev => {
+          const updatedData = updateGameState(prev);
+          localStorage.setItem(isDemoMode ? 'demoGameData' : 'gameData', JSON.stringify(updatedData));
+          return updatedData;
+        });
+
+        // Update game state every second
+        const interval = setInterval(() => {
+          setGameData(prev => {
+            const newData = { ...prev };
+            Object.keys(newData).forEach(mode => {
+              newData[mode].time -= 1;
+              if (newData[mode].time <= 0) {
+                const result = generateResult();
+                newData[mode].history.unshift({
+                  period: newData[mode].period,
+                  number: result.number,
+                  bigSmall: result.bigSmall,
+                  color: result.color,
+                });
+                newData[mode].period += 1;
+                newData[mode].time = mode === '30sec' ? 30 : mode === '1min' ? 60 : mode === '3min' ? 180 : 300;
+                if (newData[mode].history.length > 10) newData[mode].history.pop();
+
+                // Process pending bet for this mode
+                if (pendingBets[mode]) {
+                  const { type, value, betValue } = pendingBets[mode];
+                  let newChances = isDemoMode ? user.chances - 1 : user.chances;
+                  let updatedUser = { ...user, chances: newChances };
+
+                  if (
+                    (type === 'color' && result.color === value) ||
+                    (type === 'number' && result.number === value) ||
+                    (type === 'bigSmall' && result.bigSmall === value)
+                  ) {
+                    const profit = betValue * 0.92; // 92% profit
+                    const totalWin = betValue + profit;
+                    updatedUser = { ...user, balance: user.balance + totalWin, chances: newChances };
+                    setPopupMessage(`Congratulations! You won PKR ${profit.toFixed(2)}! Total: PKR ${totalWin.toFixed(2)}`);
+                  } else {
+                    setPopupMessage('Sorry, you lost!');
+                    // Check for demo mode balance refill
+                    if (isDemoMode && user.balance === 0 && newChances > 0) {
+                      updatedUser = { ...user, balance: 500, chances: newChances };
+                      setPopupMessage('Balance refilled to PKR 500! You have ' + newChances + ' chances left.');
+                    }
+                  }
+
+                  if (!isDemoMode) {
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                  }
+                  setUser(updatedUser);
+
+                  if (isDemoMode && newChances <= 0) {
+                    setTimeout(() => {
+                      setPopupMessage('Demo chances exhausted! Please sign up or sign in to continue.');
+                    }, 1000);
+                  }
+
+                  // Clear the pending bet
+                  setPendingBets(prev => ({ ...prev, [mode]: null }));
+                }
+              }
+              newData[mode].lastUpdate = Date.now();
+            });
+            localStorage.setItem(isDemoMode ? 'demoGameData' : 'gameData', JSON.stringify(newData));
+            return newData;
+          });
+        }, 1000);
+
+        return () => clearInterval(interval);
+      }, [isDemoMode, pendingBets, user]);
+
+      const handleBet = (type, value) => {
+        // Check if betting is allowed (not in the last 5 seconds)
+        if (gameData[activeGame].time <= 5) {
+          setPopupMessage('Betting is closed in the last 5 seconds!');
+          return;
+        }
+
+        if (!betAmount || isNaN(betAmount) || betAmount <= 0) {
+          setPopupMessage('Please enter a valid bet amount');
+          return;
+        }
+        if (user.balance < parseFloat(betAmount)) {
+          setPopupMessage('Insufficient balance');
+          return;
+        }
+
+        if (isDemoMode && user.chances <= 0) {
+          setPopupMessage('Demo chances exhausted! Please sign up or sign in to continue.');
+          return;
+        }
+
+        const betValue = parseFloat(betAmount);
+        // Deduct the bet amount immediately
+        const newBalance = user.balance - betValue;
+        const updatedUser = { ...user, balance: newBalance };
+        if (!isDemoMode) {
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+        setUser(updatedUser);
+
+        setPendingBets(prev => ({
+          ...prev,
+          [activeGame]: { type, value, betValue }
+        }));
+        setShowBetPopup(null);
+        setBetAmount('');
+        setPopupMessage('Bet placed! Wait for the timer to end to see the result.');
+      };
+
+      const isBettingAllowed = gameData[activeGame].time > 5;
+
+      return (
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold text-yellow-400">22 Jeeto</h1>
+            {isDemoMode ? (
+              <button onClick={onExitDemo} className="text-red-500">Exit Demo</button>
+            ) : (
+              <button onClick={onLogout} className="text-red-500">Logout</button>
+            )}
+          </div>
+          <div className="bg-gray-900 p-4 rounded-lg shadow mb-4">
+            {isDemoMode && (
+              <p className="text-center text-lg text-red-500 mb-2">Demo Mode (Chances: {user.chances})</p>
+            )}
+            <p className="text-center text-lg text-yellow-400">PKR {user.balance.toFixed(2)}</p>
+            <p className="text-center text-gray-400">Wallet balance</p>
+            {!isDemoMode && (
+              <div className="flex justify-around mt-4">
+                <button onClick={() => setShowWithdraw(true)} className="bg-red-500 text-white px-4 py-2 rounded-lg">Withdraw</button>
+                <button onClick={() => setShowDeposit(true)} className="bg-yellow-400 text-black px-4 py-2 rounded-lg">Deposit</button>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {['30sec', '1min', '3min', '5min'].map(mode => (
+              <button
+                key={mode}
+                onClick={() => setActiveGame(mode)}
+                className={`p-2 rounded-lg shadow text-center ${activeGame === mode ? 'bg-yellow-400 text-black' : 'bg-gray-800 text-gray-400'}`}
+              >
+                Jeeto {mode}
+              </button>
+            ))}
+          </div>
+          <div className="bg-gray-900 p-4 rounded-lg shadow mb-4">
+            <div className="flex justify-between">
+              <p>Jeeto {activeGame}</p>
+              <p>Time: {Math.floor(gameData[activeGame].time / 60)}:{(gameData[activeGame].time % 60).toString().padStart(2, '0')}</p>
+            </div>
+            <p className="text-gray-400">{gameData[activeGame].period}</p>
+            {!isBettingAllowed && (
+              <p className="text-red-500 text-center my-2">Betting closed (last 5 seconds)!</p>
+            )}
+            <div className="flex justify-around my-4">
+              <button
+                onClick={() => setShowBetPopup({ type: 'color', value: 'green' })}
+                className={`bg-green-500 text-white px-4 py-2 rounded-lg ${!isBettingAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!isBettingAllowed}
+              >
+                Green
+              </button>
+              <button
+                onClick={() => setShowBetPopup({ type: 'color', value: 'violet' })}
+                className={`bg-purple-500 text-white px-4 py-2 rounded-lg ${!isBettingAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!isBettingAllowed}
+              >
+                Violet
+              </button>
+              <button
+                onClick={() => setShowBetPopup({ type: 'color', value: 'red' })}
+                className={`bg-red-500 text-white px-4 py-2 rounded-lg ${!isBettingAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!isBettingAllowed}
+              >
+                Red
+              </button>
+            </div>
+            <div className="grid grid-cols-5 gap-2 mb-4">
+              {[...Array(10)].map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setShowBetPopup({ type: 'number', value: i })}
+                  className={`p-2 rounded-full text-white text-center ${
+                    i === 0 ? 'bg-purple-500' : i % 2 === 0 ? 'bg-red-500' : 'bg-green-500'
+                  } ${!isBettingAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={!isBettingAllowed}
+                >
+                  {i}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-around mb-4">
+              <button
+                onClick={() => setShowBetPopup({ type: 'bigSmall', value: 'Big' })}
+                className={`bg-orange-500 text-white px-4 py-2 rounded-lg ${!isBettingAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!isBettingAllowed}
+              >
+                Big
+              </button>
+              <button
+                onClick={() => setShowBetPopup({ type: 'bigSmall', value: 'Small' })}
+                className={`bg-blue-500 text-white px-4 py-2 rounded-lg ${!isBettingAllowed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!isBettingAllowed}
+              >
+                Small
+              </button>
+            </div>
+          </div>
+          <div className="bg-gray-900 p-4 rounded-lg shadow">
+            <div className="grid grid-cols-4 gap-2 text-center font-bold text-yellow-400">
+              <p>Period</p>
+              <p>Number</p>
+              <p>Big/Small</p>
+              <p>Color</p>
+            </div>
+            {gameData[activeGame].history.map((row, i) => (
+              <div key={i} className="grid grid-cols-4 gap-2 text-center">
+                <p>{row.period}</p>
+                <p>{row.number}</p>
+                <p>{row.bigSmall}</p>
+                <div className={`w-4 h-4 rounded-full mx-auto ${row.color === 'red' ? 'bg-red-500' : row.color === 'green' ? 'bg-green-500' : 'bg-purple-500'}`}></div>
+              </div>
+            ))}
+          </div>
+          {showBetPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-gray-900 p-6 rounded-lg shadow-lg w-full max-w-sm">
+                <h2 className="text-lg font-bold text-yellow-400 mb-4">Place Your Bet</h2>
+                <p>Bet on: {showBetPopup.type === 'color' ? showBetPopup.value : showBetPopup.type === 'number' ? `Number ${showBetPopup.value}` : showBetPopup.value}</p>
+                <input
+                  type="number"
+                  value={betAmount}
+                  onChange={(e) => setBetAmount(e.target.value)}
+                  className="w-full p-2 border rounded-lg bg-gray-800 text-white my-4"
+                  placeholder="Enter amount in PKR"
+                />
+                <div className="flex justify-around">
+                  <button onClick={() => handleBet(showBetPopup.type, showBetPopup.value)} className="bg-yellow-400 text-black px-4 py-2 rounded-lg">Confirm</button>
+                  <button onClick={() => setShowBetPopup(null)} className="bg-gray-600 text-white px-4 py-2 rounded-lg">Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // Deposit Page Component
+    const DepositPage = ({ setShowDeposit, user, setUser, setPopupMessage }) => {
+      const [screenshot, setScreenshot] = useState(null);
+
+      const handleDeposit = () => {
+        if (!screenshot) {
+          setPopupMessage('Please upload a screenshot');
+          return;
+        }
+        const updatedUser = { ...user, balance: user.balance + 100 };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        setShowDeposit(false);
+      };
+
+      return (
+        <div className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold text-yellow-400">Deposit</h1>
+            <button onClick={() => setShowDeposit(false)} className="text-gray-400">Back</button>
+          </div>
+          <div className="bg-gray-900 p-4 rounded-lg shadow">
+            <p className="mb-4">
+              Deposit your amount to this JazzCash account: <br />
+              <strong>03060406003</strong> <br />
+              <strong>Afrasiab Asghar</strong>
+            </p>
+            <p className="mb-4">Upload your payment screenshot:</p>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setScreenshot(e.target.files[0])}
+              className="mb-4 text-gray-400"
+            />
+            <button
+              onClick={handleDeposit}
+              className="w-full bg-yellow-400 text-black p-2 rounded-lg hover:bg-yellow-500"
+            >
+              Submit Deposit
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // Withdraw Page Component
+    const WithdrawPage = ({ setShowWithdraw }) => {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-gray-900 p-6 rounded-lg shadow-lg w-full max-w-sm">
+            <h2 className="text-lg font-bold text-yellow-400 mb-4">Withdrawal</h2>
+            <p className="mb-4">
+              Send your bank account details to this number with a credit screenshot: <br />
+              <strong>03060406003</strong>
+            </p>
+            <button
+              onClick={() => setShowWithdraw(false)}
+              className="w-full bg-yellow-400 text-black p-2 rounded-lg hover:bg-yellow-500"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // Render the App
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
